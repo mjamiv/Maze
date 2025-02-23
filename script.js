@@ -11,10 +11,18 @@ let gameStarted = false;
 let maze = [];
 let hazards = [];
 
-// Sound effects
+// Sound effects with preloading and error handling
 const moveSound = new Audio('audio/move.wav');
 const destroySound = new Audio('audio/destroy.wav');
 const winSound = new Audio('audio/win.wav');
+
+moveSound.preload = 'auto';
+destroySound.preload = 'auto';
+winSound.preload = 'auto';
+
+moveSound.onerror = () => console.error('Error loading move sound');
+destroySound.onerror = () => console.error('Error loading destroy sound');
+winSound.onerror = () => console.error('Error loading win sound');
 
 function generateMaze() {
     // Initialize maze with all walls (1)
@@ -127,11 +135,17 @@ document.querySelectorAll('#characters img').forEach(img => {
             gameStarted = true;
             generateMaze(); // Generate a new maze when a character is selected
             draw(); // Draw the maze immediately after selection
+            console.log('Character selected, maze generated, and drawn');
         };
+        character.onerror = () => console.error('Error loading character image');
     });
 });
 
 function draw() {
+    if (!ctx) {
+        console.error('Canvas context not available');
+        return;
+    }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw maze
@@ -139,4 +153,129 @@ function draw() {
         for (let x = 0; x < mazeWidth; x++) {
             if (maze[y][x] === 1) {
                 ctx.fillStyle = '#333';
-                ctx.fillRect(x * tileSize
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+        }
+    }
+
+    // Draw hazards
+    ctx.fillStyle = 'red';
+    hazards.forEach(hazard => {
+        ctx.fillRect(hazard.x * tileSize, hazard.y * tileSize, tileSize, tileSize);
+    });
+
+    // Draw goal
+    ctx.fillStyle = 'green';
+    ctx.fillRect(goal.x * tileSize, goal.y * tileSize, tileSize, tileSize);
+
+    // Draw player
+    if (character && gameStarted) {
+        ctx.drawImage(character, player.x * tileSize, player.y * tileSize, tileSize, tileSize);
+    } else {
+        console.log('Character or game not ready for drawing');
+    }
+}
+
+function movePlayer(dx, dy) {
+    const newX = player.x + dx;
+    const newY = player.y + dy;
+
+    if (newX >= 0 && newX < mazeWidth && newY >= 0 && newY < mazeHeight &&
+        maze[newY][newX] === 0 && !isHazard(newX, newY)) {
+        player.x = newX;
+        player.y = newY;
+
+        if (player.x === goal.x && player.y === goal.y) {
+            winSound.play().catch(e => console.error('Error playing win sound:', e));
+            document.getElementById('game-over').style.display = 'flex';
+        } else {
+            moveSound.play().catch(e => console.error('Error playing move sound:', e));
+        }
+
+        draw();
+    }
+}
+
+function isHazard(x, y) {
+    return hazards.some(h => h.x === x && h.y === y);
+}
+
+function isAdjacentToHazard(x, y) {
+    const adjacentPositions = [
+        { x: x, y: y }, // Current position
+        { x: x + 1, y: y }, // Right
+        { x: x - 1, y: y }, // Left
+        { x: x, y: y + 1 }, // Down
+        { x: x, y: y - 1 }  // Up
+    ];
+
+    return hazards.some(h => 
+        adjacentPositions.some(pos => 
+            pos.x === h.x && pos.y === h.y && pos.x >= 0 && pos.x < mazeWidth && pos.y >= 0 && pos.y < mazeHeight
+        )
+    );
+}
+
+function destroyHazard() {
+    if (!gameStarted) return;
+
+    const hazardIndex = hazards.findIndex(h => 
+        h.x === player.x && h.y === player.y
+    );
+
+    if (hazardIndex !== -1) {
+        hazards.splice(hazardIndex, 1); // Remove the hazard at player's position
+        destroySound.play().catch(e => console.error('Error playing destroy sound:', e));
+        draw(); // Redraw the maze without the removed hazard
+        return;
+    }
+
+    // Check adjacent positions for hazards to destroy
+    const adjacentPositions = [
+        { x: player.x + 1, y: player.y }, // Right
+        { x: player.x - 1, y: player.y }, // Left
+        { x: player.x, y: player.y + 1 }, // Down
+        { x: player.x, y: player.y - 1 }  // Up
+    ];
+
+    for (let pos of adjacentPositions) {
+        if (pos.x >= 0 && pos.x < mazeWidth && pos.y >= 0 && pos.y < mazeHeight) {
+            const hazardIndex = hazards.findIndex(h => h.x === pos.x && h.y === pos.y);
+            if (hazardIndex !== -1) {
+                hazards.splice(hazardIndex, 1); // Remove the hazard at adjacent position
+                destroySound.play().catch(e => console.error('Error playing destroy sound:', e));
+                draw(); // Redraw the maze without the removed hazard
+                return;
+            }
+        }
+    }
+}
+
+document.addEventListener('keydown', (e) => {
+    if (!gameStarted) return;
+
+    switch (e.key) {
+        case 'ArrowUp': movePlayer(0, -1); break;
+        case 'ArrowDown': movePlayer(0, 1); break;
+        case 'ArrowLeft': movePlayer(-1, 0); break;
+        case 'ArrowRight': movePlayer(1, 0); break;
+        case ' ': destroyHazard(); break; // Space bar to destroy hazards
+    }
+});
+
+// Reset game on page reload or when "Play Again" is clicked
+window.addEventListener('load', () => {
+    generateMaze(); // Generate initial maze (hidden until character is selected)
+    draw(); // Draw the initial maze (though hidden)
+    console.log('Page loaded, maze generated, and drawn');
+});
+
+document.getElementById('game-over').querySelector('button').addEventListener('click', () => {
+    player = { x: 1, y: 1 }; // Reset player position
+    gameStarted = false; // Reset game state
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('character-selection').style.display = 'flex'; // Show character selection again
+    generateMaze(); // Generate a new maze for the next game
+    draw(); // Redraw the initial maze (though hidden)
+    console.log('Game reset, new maze generated, and drawn');
+});
