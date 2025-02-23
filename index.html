@@ -1,1 +1,27 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <div id="character-selection">
+            <h1>Select Your Character</h1>
+            <div id="characters">
+                <img src="images/char1.png" alt="Knight" data-char="char1">
+                <img src="images/char2.png" alt="Thief" data-char="char2">
+                <img src="images/char3.png" alt="Mage" data-char="char3">
+            </div>
+        </div>
+        <canvas id="game-canvas" width="480" height="480"></canvas>
+        <div id="game-over">
+            <h1>You Win!</h1>
+            <button onclick="location.reload()">Play Again</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
