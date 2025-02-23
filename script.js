@@ -10,8 +10,9 @@ let goal = { x: 13, y: 13 }; // Goal position (bottom-right)
 let gameStarted = false;
 let maze = [];
 let hazards = [];
+let hasInteracted = false; // Flag for user interaction to handle autoplay restrictions
 
-// Sound effects with preloading and error handling
+// Sound effects with preloading, error handling, and interaction check
 const moveSound = new Audio('audio/move.wav');
 const destroySound = new Audio('audio/destroy.wav');
 const winSound = new Audio('audio/win.wav');
@@ -20,9 +21,24 @@ moveSound.preload = 'auto';
 destroySound.preload = 'auto';
 winSound.preload = 'auto';
 
-moveSound.onerror = () => console.error('Error loading move sound');
-destroySound.onerror = () => console.error('Error loading destroy sound');
-winSound.onerror = () => console.error('Error loading win sound');
+moveSound.onerror = () => console.error('Error loading move sound: Check file path (audio/move.wav)');
+destroySound.onerror = () => console.error('Error loading destroy sound: Check file path (audio/destroy.wav)');
+winSound.onerror = () => console.error('Error loading win sound: Check file path (audio/win.wav)');
+
+// Function to play sound with interaction check and error handling
+function playSound(sound) {
+    if (hasInteracted) {
+        sound.play().catch(e => console.error('Error playing sound:', e));
+    } else {
+        console.warn('User interaction required before playing sound. Waiting for click...');
+    }
+}
+
+// Set interaction flag on any user click
+document.addEventListener('click', () => {
+    hasInteracted = true;
+    console.log('User interacted, sounds can now play');
+});
 
 function generateMaze() {
     // Initialize maze with all walls (1)
@@ -133,6 +149,7 @@ document.querySelectorAll('#characters img').forEach(img => {
         character.onload = () => { // Ensure image is loaded before drawing
             document.getElementById('character-selection').style.display = 'none';
             gameStarted = true;
+            hasInteracted = true; // Set interaction flag on character selection
             generateMaze(); // Generate a new maze when a character is selected
             draw(); // Draw the maze immediately after selection
             console.log('Character selected, maze generated, and drawn');
@@ -186,10 +203,10 @@ function movePlayer(dx, dy) {
         player.y = newY;
 
         if (player.x === goal.x && player.y === goal.y) {
-            winSound.play().catch(e => console.error('Error playing win sound:', e));
+            playSound(winSound); // Play win sound
             document.getElementById('game-over').style.display = 'flex';
         } else {
-            moveSound.play().catch(e => console.error('Error playing move sound:', e));
+            playSound(moveSound); // Play move sound
         }
 
         draw();
@@ -225,7 +242,7 @@ function destroyHazard() {
 
     if (hazardIndex !== -1) {
         hazards.splice(hazardIndex, 1); // Remove the hazard at player's position
-        destroySound.play().catch(e => console.error('Error playing destroy sound:', e));
+        playSound(destroySound); // Play destroy sound
         draw(); // Redraw the maze without the removed hazard
         return;
     }
@@ -243,7 +260,7 @@ function destroyHazard() {
             const hazardIndex = hazards.findIndex(h => h.x === pos.x && h.y === pos.y);
             if (hazardIndex !== -1) {
                 hazards.splice(hazardIndex, 1); // Remove the hazard at adjacent position
-                destroySound.play().catch(e => console.error('Error playing destroy sound:', e));
+                playSound(destroySound); // Play destroy sound
                 draw(); // Redraw the maze without the removed hazard
                 return;
             }
