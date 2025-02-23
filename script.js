@@ -11,6 +11,11 @@ let gameStarted = false;
 let maze = [];
 let hazards = [];
 
+// Sound effects
+const moveSound = new Audio('audio/move.mp3');
+const destroySound = new Audio('audio/destroy.mp3');
+const winSound = new Audio('audio/win.mp3');
+
 function generateMaze() {
     // Initialize maze with all walls (1)
     maze = Array(mazeHeight).fill().map(() => Array(mazeWidth).fill(1));
@@ -165,7 +170,10 @@ function movePlayer(dx, dy) {
         player.y = newY;
 
         if (player.x === goal.x && player.y === goal.y) {
+            winSound.play(); // Play win sound
             document.getElementById('game-over').style.display = 'flex';
+        } else {
+            moveSound.play(); // Play move sound
         }
 
         draw();
@@ -201,6 +209,7 @@ function destroyHazard() {
 
     if (hazardIndex !== -1) {
         hazards.splice(hazardIndex, 1); // Remove the hazard at player's position
+        destroySound.play(); // Play destroy sound
         draw(); // Redraw the maze without the removed hazard
         return;
     }
@@ -218,6 +227,7 @@ function destroyHazard() {
             const hazardIndex = hazards.findIndex(h => h.x === pos.x && h.y === pos.y);
             if (hazardIndex !== -1) {
                 hazards.splice(hazardIndex, 1); // Remove the hazard at adjacent position
+                destroySound.play(); // Play destroy sound
                 draw(); // Redraw the maze without the removed hazard
                 return;
             }
