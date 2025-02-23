@@ -27,7 +27,7 @@ const maze = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ];
 
-const hazards = [
+let hazards = [
     { x: 6, y: 1 }, { x: 8, y: 2 }, { x: 9, y: 4 },
     { x: 4, y: 6 }, { x: 8, y: 8 }, { x: 11, y: 11 }
 ];
@@ -92,6 +92,55 @@ function isHazard(x, y) {
     return hazards.some(h => h.x === x && h.y === y);
 }
 
+function isAdjacentToHazard(x, y) {
+    const adjacentPositions = [
+        { x: x, y: y }, // Current position
+        { x: x + 1, y: y }, // Right
+        { x: x - 1, y: y }, // Left
+        { x: x, y: y + 1 }, // Down
+        { x: x, y: y - 1 }  // Up
+    ];
+
+    return hazards.some(h => 
+        adjacentPositions.some(pos => 
+            pos.x === h.x && pos.y === h.y && pos.x >= 0 && pos.x < mazeWidth && pos.y >= 0 && pos.y < mazeHeight
+        )
+    );
+}
+
+function destroyHazard() {
+    if (!gameStarted) return;
+
+    const hazardIndex = hazards.findIndex(h => 
+        h.x === player.x && h.y === player.y
+    );
+
+    if (hazardIndex !== -1) {
+        hazards.splice(hazardIndex, 1); // Remove the hazard at player's position
+        draw(); // Redraw the maze without the removed hazard
+        return;
+    }
+
+    // Check adjacent positions for hazards to destroy
+    const adjacentPositions = [
+        { x: player.x + 1, y: player.y }, // Right
+        { x: player.x - 1, y: player.y }, // Left
+        { x: player.x, y: player.y + 1 }, // Down
+        { x: player.x, y: player.y - 1 }  // Up
+    ];
+
+    for (let pos of adjacentPositions) {
+        if (pos.x >= 0 && pos.x < mazeWidth && pos.y >= 0 && pos.y < mazeHeight) {
+            const hazardIndex = hazards.findIndex(h => h.x === pos.x && h.y === pos.y);
+            if (hazardIndex !== -1) {
+                hazards.splice(hazardIndex, 1); // Remove the hazard at adjacent position
+                draw(); // Redraw the maze without the removed hazard
+                return;
+            }
+        }
+    }
+}
+
 document.addEventListener('keydown', (e) => {
     if (!gameStarted) return;
 
@@ -100,5 +149,6 @@ document.addEventListener('keydown', (e) => {
         case 'ArrowDown': movePlayer(0, 1); break;
         case 'ArrowLeft': movePlayer(-1, 0); break;
         case 'ArrowRight': movePlayer(1, 0); break;
+        case ' ': destroyHazard(); break; // Space bar to destroy hazards
     }
 });
