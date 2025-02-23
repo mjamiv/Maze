@@ -15,11 +15,11 @@ function generateMaze() {
     // Initialize maze with all walls (1)
     maze = Array(mazeHeight).fill().map(() => Array(mazeWidth).fill(1));
 
-    // Recursive backtracking with fewer dead ends and more navigable paths
-    function carve(x, y, depth = 0, maxDepth = 4) {
+    // Recursive backtracking with minimal dead ends and navigable paths
+    function carve(x, y, depth = 0, maxDepth = 3) {
         maze[y][x] = 0; // Carve a path (0)
 
-        // Use fewer directions and prioritize main paths to reduce dead ends
+        // Use only cardinal directions to ensure simpler, navigable paths
         const directions = [
             { dx: 0, dy: -2 },  // Up
             { dx: 0, dy: 2 },   // Down
@@ -33,7 +33,7 @@ function generateMaze() {
             const newY = y + dir.dy;
 
             if (newX > 0 && newX < mazeWidth - 1 && newY > 0 && newY < mazeHeight - 1 && maze[newY][newX] === 1) {
-                if (Math.random() < 0.85 || depth < maxDepth) { // Higher chance (85%) to carve, fewer dead ends
+                if (Math.random() < 0.95 || depth < maxDepth) { // 95% chance to carve, very few dead ends
                     maze[y + dir.dy / 2][x + dir.dx / 2] = 0; // Carve wall between
                     carve(newX, newY, depth + 1, maxDepth);
                     carvedCount++;
@@ -41,8 +41,8 @@ function generateMaze() {
             }
         }
 
-        // Occasionally add a short dead end for interest, but less frequently
-        if (Math.random() < 0.1 && carvedCount < 2) { // 10% chance for a very short dead end
+        // Rarely add very short dead ends for minor interest, but minimize them
+        if (Math.random() < 0.05 && carvedCount < 1) { // 5% chance for a very short dead end, only if few paths carved
             const extraDir = directions[Math.floor(Math.random() * directions.length)];
             const extraX = x + extraDir.dx;
             const extraY = y + extraDir.dy;
@@ -99,9 +99,9 @@ function generateMaze() {
         attempts++;
     }
 
-    // Generate random hazards (4-6 hazards, ensuring they don’t block start or goal)
+    // Generate random hazards (3-5 hazards, ensuring they don’t block start or goal)
     hazards = [];
-    const numHazards = Math.floor(Math.random() * 3) + 4; // 4 to 6 hazards (fewer to reduce complexity)
+    const numHazards = Math.floor(Math.random() * 3) + 3; // 3 to 5 hazards (fewer to reduce complexity)
     for (let i = 0; i < numHazards; i++) {
         let hazardX, hazardY;
         do {
