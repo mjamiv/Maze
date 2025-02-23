@@ -15,20 +15,16 @@ function generateMaze() {
     // Initialize maze with all walls (1)
     maze = Array(mazeHeight).fill().map(() => Array(mazeWidth).fill(1));
 
-    // Recursive backtracking with more randomness and complexity
-    function carve(x, y, depth = 0, maxDepth = 5) {
+    // Recursive backtracking with fewer dead ends and more navigable paths
+    function carve(x, y, depth = 0, maxDepth = 4) {
         maze[y][x] = 0; // Carve a path (0)
 
-        // Increase randomness with more directions and occasional dead ends
+        // Use fewer directions and prioritize main paths to reduce dead ends
         const directions = [
             { dx: 0, dy: -2 },  // Up
             { dx: 0, dy: 2 },   // Down
             { dx: -2, dy: 0 },  // Left
-            { dx: 2, dy: 0 },   // Right
-            { dx: -2, dy: -2 }, // Diagonal up-left (optional for complexity)
-            { dx: 2, dy: -2 },  // Diagonal up-right
-            { dx: -2, dy: 2 },  // Diagonal down-left
-            { dx: 2, dy: 2 }    // Diagonal down-right
+            { dx: 2, dy: 0 }    // Right
         ].sort(() => Math.random() - 0.5); // Shuffle directions
 
         let carvedCount = 0;
@@ -37,19 +33,16 @@ function generateMaze() {
             const newY = y + dir.dy;
 
             if (newX > 0 && newX < mazeWidth - 1 && newY > 0 && newY < mazeHeight - 1 && maze[newY][newX] === 1) {
-                if (Math.random() < 0.7 || depth < maxDepth) { // 70% chance to carve, or continue if not too deep
+                if (Math.random() < 0.85 || depth < maxDepth) { // Higher chance (85%) to carve, fewer dead ends
                     maze[y + dir.dy / 2][x + dir.dx / 2] = 0; // Carve wall between
                     carve(newX, newY, depth + 1, maxDepth);
                     carvedCount++;
-                } else if (Math.random() < 0.3 && carvedCount < 2) { // 30% chance for a short dead end
-                    maze[y + dir.dy / 2][x + dir.dx / 2] = 0;
-                    maze[newY][newX] = 0;
                 }
             }
         }
 
-        // Occasionally add small random paths for more interest
-        if (Math.random() < 0.2 && carvedCount < 3) {
+        // Occasionally add a short dead end for interest, but less frequently
+        if (Math.random() < 0.1 && carvedCount < 2) { // 10% chance for a very short dead end
             const extraDir = directions[Math.floor(Math.random() * directions.length)];
             const extraX = x + extraDir.dx;
             const extraY = y + extraDir.dy;
@@ -60,7 +53,7 @@ function generateMaze() {
         }
     }
 
-    // Start carving from (1,1) with a random offset for variety
+    // Start carving from (1,1) with a small random offset
     const startX = 1 + Math.floor(Math.random() * 2);
     const startY = 1 + Math.floor(Math.random() * 2);
     carve(startX, startY);
@@ -106,9 +99,9 @@ function generateMaze() {
         attempts++;
     }
 
-    // Generate random hazards (5-8 hazards, ensuring they don’t block start or goal)
+    // Generate random hazards (4-6 hazards, ensuring they don’t block start or goal)
     hazards = [];
-    const numHazards = Math.floor(Math.random() * 4) + 5; // 5 to 8 hazards
+    const numHazards = Math.floor(Math.random() * 3) + 4; // 4 to 6 hazards (fewer to reduce complexity)
     for (let i = 0; i < numHazards; i++) {
         let hazardX, hazardY;
         do {
@@ -124,10 +117,12 @@ document.querySelectorAll('#characters img').forEach(img => {
     img.addEventListener('click', () => {
         character = new Image();
         character.src = img.src;
-        document.getElementById('character-selection').style.display = 'none';
-        gameStarted = true;
-        generateMaze(); // Generate a new maze when a character is selected
-        draw();
+        character.onload = () => { // Ensure image is loaded before drawing
+            document.getElementById('character-selection').style.display = 'none';
+            gameStarted = true;
+            generateMaze(); // Generate a new maze when a character is selected
+            draw(); // Draw the maze immediately after selection
+        };
     });
 });
 
@@ -155,7 +150,7 @@ function draw() {
     ctx.fillRect(goal.x * tileSize, goal.y * tileSize, tileSize, tileSize);
 
     // Draw player
-    if (character && character.complete) {
+    if (character && gameStarted) {
         ctx.drawImage(character, player.x * tileSize, player.y * tileSize, tileSize, tileSize);
     }
 }
@@ -245,6 +240,7 @@ document.addEventListener('keydown', (e) => {
 // Reset game on page reload or when "Play Again" is clicked
 window.addEventListener('load', () => {
     generateMaze(); // Generate initial maze (hidden until character is selected)
+    draw(); // Draw the initial maze (though hidden)
 });
 
 document.getElementById('game-over').querySelector('button').addEventListener('click', () => {
