@@ -12,7 +12,7 @@ let maze = [];
 let hazards = [];
 let hasInteracted = false; // Flag for user interaction to handle autoplay restrictions
 
-// Sound effects with preloading, error handling, and interaction check
+// Sound effects with preloading, error handling, and fallback
 const moveSound = new Audio('audio/move.wav');
 const destroySound = new Audio('audio/destroy.wav');
 const winSound = new Audio('audio/win.wav');
@@ -21,23 +21,47 @@ moveSound.preload = 'auto';
 destroySound.preload = 'auto';
 winSound.preload = 'auto';
 
-moveSound.onerror = () => console.error('Error loading move sound: Check file path (audio/move.wav)');
-destroySound.onerror = () => console.error('Error loading destroy sound: Check file path (audio/destroy.wav)');
-winSound.onerror = () => console.error('Error loading win sound: Check file path (audio/win.wav)');
+// Enhanced error handling for sound loading
+moveSound.onerror = () => {
+    console.error('Error loading move sound: Check file path (audio/move.wav) or format compatibility');
+    moveSound.src = ''; // Clear invalid source to prevent repeated errors
+};
+destroySound.onerror = () => {
+    console.error('Error loading destroy sound: Check file path (audio/destroy.wav) or format compatibility');
+    destroySound.src = ''; // Clear invalid source
+};
+winSound.onerror = () => {
+    console.error('Error loading win sound: Check file path (audio/win.wav) or format compatibility');
+    winSound.src = ''; // Clear invalid source
+};
 
-// Function to play sound with interaction check and error handling
+// Function to play sound with interaction check, error handling, and fallback
 function playSound(sound) {
-    if (hasInteracted) {
-        sound.play().catch(e => console.error('Error playing sound:', e));
-    } else {
+    if (!hasInteracted) {
         console.warn('User interaction required before playing sound. Waiting for click...');
+        return;
+    }
+
+    if (sound.paused || sound.ended) {
+        sound.play().catch(e => {
+            console.error('Error playing sound:', e);
+            // Fallback: Log the issue and suggest checking file format or browser
+            console.warn('Sound playback failed. Ensure .wav files are supported in your browser or try converting to .mp3.');
+        });
     }
 }
 
-// Set interaction flag on any user click
+// Set interaction flag on any user click or keypress
 document.addEventListener('click', () => {
     hasInteracted = true;
-    console.log('User interacted, sounds can now play');
+    console.log('User interacted (click), sounds can now play');
+});
+
+document.addEventListener('keydown', (e) => {
+    if (!gameStarted) {
+        hasInteracted = true;
+        console.log('User interacted (keydown), sounds can now play');
+    }
 });
 
 function generateMaze() {
@@ -269,6 +293,11 @@ function destroyHazard() {
 }
 
 document.addEventListener('keydown', (e) => {
+    if (!gameStarted) {
+        hasInteracted = true;
+        console.log('User interacted (keydown), sounds can now play');
+    }
+
     if (!gameStarted) return;
 
     switch (e.key) {
