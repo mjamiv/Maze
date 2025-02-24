@@ -120,7 +120,7 @@ function generateMaze() {
         maze[i][mazeWidth - 1] = 1;  // Right
     }
 
-    // Ensure the maze is solvable (simple pathfinding check)
+    // Ensure the maze is solvable (simple pathfinding check, now accounting for collectibles)
     function isSolvable() {
         const visited = Array(mazeHeight).fill().map(() => Array(mazeWidth).fill(false));
         function dfs(x, y) {
@@ -131,7 +131,7 @@ function generateMaze() {
                 const newX = x + dir.dx;
                 const newY = y + dir.dy;
                 if (newX >= 0 && newX < mazeWidth && newY >= 0 && newY < mazeHeight &&
-                    !visited[newY][newX] && maze[newY][newX] === 0 && !isHazard(newX, newY) && !isCollectible(newX, newY)) {
+                    !visited[newY][newX] && maze[newY][newX] === 0 && !isHazard(newX, newY)) {
                     if (dfs(newX, newY)) return true;
                 }
             }
@@ -242,9 +242,15 @@ function movePlayer(dx, dy) {
     const newY = player.y + dy;
 
     if (newX >= 0 && newX < mazeWidth && newY >= 0 && newY < mazeHeight &&
-        maze[newY][newX] === 0 && !isHazard(newX, newY)) {
+        maze[newY][newX] === 0) { // Simplified to check only maze paths, ignoring hazards/collectibles here
         player.x = newX;
         player.y = newY;
+
+        // Check for hazards after movement (for collision, but allow movement)
+        if (isHazard(newX, newY)) {
+            console.warn('Player hit a hazard but can still move—consider adding damage or blocking.');
+            return; // Optional: Block movement on hazards if desired
+        }
 
         // Check for collectibles
         const collectibleIndex = collectibles.findIndex(c => c.x === newX && c.y === newY);
@@ -264,6 +270,8 @@ function movePlayer(dx, dy) {
         }
 
         draw();
+    } else {
+        console.log(`Movement blocked at (${newX}, ${newY})`);
     }
 }
 
@@ -346,6 +354,7 @@ function restartGame() {
     gameStarted = false; // Reset game state
     score = 0; // Reset score
     timeLeft = 60; // Reset timer
+    collectibles = []; // Reset collectibles
     document.getElementById('game-over').style.display = 'none';
     document.getElementById('time-over').style.display = 'none';
     document.getElementById('character-selection').style.display = 'flex'; // Show character selection again
