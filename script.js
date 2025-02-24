@@ -12,10 +12,10 @@ let maze = [];
 let hazards = [];
 let hasInteracted = false; // Flag for user interaction to handle autoplay restrictions
 
-// Sound effects with preloading, error handling, and fallback
-const moveSound = new Audio('audio/move.wav');
-const destroySound = new Audio('audio/destroy.wav');
-const winSound = new Audio('audio/win.wav');
+// Sound effects with preloading, error handling, and interaction check
+const moveSound = new Audio('audio/move.m4a');
+const destroySound = new Audio('audio/destroy.m4a');
+const winSound = new Audio('audio/win.m4a');
 
 moveSound.preload = 'auto';
 destroySound.preload = 'auto';
@@ -23,15 +23,15 @@ winSound.preload = 'auto';
 
 // Enhanced error handling for sound loading
 moveSound.onerror = () => {
-    console.error('Error loading move sound: Check file path (audio/move.wav) or format compatibility');
+    console.error('Error loading move sound: Check file path (audio/move.m4a) or format compatibility');
     moveSound.src = ''; // Clear invalid source to prevent repeated errors
 };
 destroySound.onerror = () => {
-    console.error('Error loading destroy sound: Check file path (audio/destroy.wav) or format compatibility');
+    console.error('Error loading destroy sound: Check file path (audio/destroy.m4a) or format compatibility');
     destroySound.src = ''; // Clear invalid source
 };
 winSound.onerror = () => {
-    console.error('Error loading win sound: Check file path (audio/win.wav) or format compatibility');
+    console.error('Error loading win sound: Check file path (audio/win.m4a) or format compatibility');
     winSound.src = ''; // Clear invalid source
 };
 
@@ -46,7 +46,7 @@ function playSound(sound) {
         sound.play().catch(e => {
             console.error('Error playing sound:', e);
             // Fallback: Log the issue and suggest checking file format or browser
-            console.warn('Sound playback failed. Ensure .wav files are supported in your browser or try converting to .mp3.');
+            console.warn('Sound playback failed. Ensure .m4a files are supported in your browser.');
         });
     }
 }
