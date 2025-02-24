@@ -10,30 +10,26 @@ let goal = { x: 13, y: 13 }; // Goal position (bottom-right)
 let gameStarted = false;
 let maze = [];
 let hazards = [];
+let collectibles = [];
+let score = 0;
+let timeLeft = 60; // 60-second timer
+let timerInterval = null;
 let hasInteracted = false; // Flag for user interaction to handle autoplay restrictions
 
 // Sound effects with preloading, error handling, and interaction check
 const moveSound = new Audio('audio/move.m4a');
 const destroySound = new Audio('audio/destroy.m4a');
 const winSound = new Audio('audio/win.m4a');
+const collectSound = new Audio('audio/collect.m4a');
+const timeoutSound = new Audio('audio/timeout.m4a');
 
-moveSound.preload = 'auto';
-destroySound.preload = 'auto';
-winSound.preload = 'auto';
-
-// Enhanced error handling for sound loading
-moveSound.onerror = () => {
-    console.error('Error loading move sound: Check file path (audio/move.m4a) or format compatibility');
-    moveSound.src = ''; // Clear invalid source to prevent repeated errors
-};
-destroySound.onerror = () => {
-    console.error('Error loading destroy sound: Check file path (audio/destroy.m4a) or format compatibility');
-    destroySound.src = ''; // Clear invalid source
-};
-winSound.onerror = () => {
-    console.error('Error loading win sound: Check file path (audio/win.m4a) or format compatibility');
-    winSound.src = ''; // Clear invalid source
-};
+[moveSound, destroySound, winSound, collectSound, timeoutSound].forEach(sound => {
+    sound.preload = 'auto';
+    sound.onerror = () => {
+        console.error(`Error loading sound: Check file path (audio/${sound.src.split('/').pop()}) or format compatibility`);
+        sound.src = ''; // Clear invalid source to prevent repeated errors
+    };
+});
 
 // Function to play sound with interaction check, error handling, and fallback
 function playSound(sound) {
@@ -45,7 +41,6 @@ function playSound(sound) {
     if (sound.paused || sound.ended) {
         sound.play().catch(e => {
             console.error('Error playing sound:', e);
-            // Fallback: Log the issue and suggest checking file format or browser
             console.warn('Sound playback failed. Ensure .m4a files are supported in your browser.');
         });
     }
@@ -136,7 +131,7 @@ function generateMaze() {
                 const newX = x + dir.dx;
                 const newY = y + dir.dy;
                 if (newX >= 0 && newX < mazeWidth && newY >= 0 && newY < mazeHeight &&
-                    !visited[newY][newX] && maze[newY][newX] === 0 && !isHazard(newX, newY)) {
+                    !visited[newY][newX] && maze[newY][newX] === 0 && !isHazard(newX, newY) && !isCollectible(newX, newY)) {
                     if (dfs(newX, newY)) return true;
                 }
             }
@@ -154,7 +149,7 @@ function generateMaze() {
 
     // Generate random hazards (3-5 hazards, ensuring they don’t block start or goal)
     hazards = [];
-    const numHazards = Math.floor(Math.random() * 3) + 3; // 3 to 5 hazards (fewer to reduce complexity)
+    const numHazards = Math.floor(Math.random() * 3) + 3; // 3 to 5 hazards
     for (let i = 0; i < numHazards; i++) {
         let hazardX, hazardY;
         do {
@@ -163,6 +158,20 @@ function generateMaze() {
         } while (maze[hazardY][hazardX] !== 0 || (hazardX === 1 && hazardY === 1) || (hazardX === 13 && hazardY === 13));
 
         hazards.push({ x: hazardX, y: hazardY });
+    }
+
+    // Generate random collectibles (2-4 collectibles, ensuring they don’t overlap with start, goal, or hazards)
+    collectibles = [];
+    const numCollectibles = Math.floor(Math.random() * 3) + 2; // 2 to 4 collectibles
+    for (let i = 0; i < numCollectibles; i++) {
+        let collectX, collectY;
+        do {
+            collectX = Math.floor(Math.random() * (mazeWidth - 2)) + 1;
+            collectY = Math.floor(Math.random() * (mazeHeight - 2)) + 1;
+        } while (maze[collectY][collectX] !== 0 || (collectX === 1 && collectY === 1) || (collectX === 13 && collectY === 13) ||
+                 isHazard(collectX, collectY));
+
+        collectibles.push({ x: collectX, y: collectY });
     }
 }
 
@@ -175,6 +184,7 @@ document.querySelectorAll('#characters img').forEach(img => {
             gameStarted = true;
             hasInteracted = true; // Set interaction flag on character selection
             generateMaze(); // Generate a new maze when a character is selected
+            startTimer(); // Start the timer
             draw(); // Draw the maze immediately after selection
             console.log('Character selected, maze generated, and drawn');
         };
@@ -205,6 +215,12 @@ function draw() {
         ctx.fillRect(hazard.x * tileSize, hazard.y * tileSize, tileSize, tileSize);
     });
 
+    // Draw collectibles (yellow)
+    ctx.fillStyle = 'yellow';
+    collectibles.forEach(collectible => {
+        ctx.fillRect(collectible.x * tileSize, collectible.y * tileSize, tileSize, tileSize);
+    });
+
     // Draw goal
     ctx.fillStyle = 'green';
     ctx.fillRect(goal.x * tileSize, goal.y * tileSize, tileSize, tileSize);
@@ -215,6 +231,10 @@ function draw() {
     } else {
         console.log('Character or game not ready for drawing');
     }
+
+    // Update score and timer display
+    document.getElementById('score').textContent = `Score: ${score}`;
+    document.getElementById('timer').textContent = `Time: ${Math.max(0, timeLeft)}`;
 }
 
 function movePlayer(dx, dy) {
@@ -226,8 +246,18 @@ function movePlayer(dx, dy) {
         player.x = newX;
         player.y = newY;
 
+        // Check for collectibles
+        const collectibleIndex = collectibles.findIndex(c => c.x === newX && c.y === newY);
+        if (collectibleIndex !== -1) {
+            collectibles.splice(collectibleIndex, 1); // Remove collectible
+            score += 10; // Add 10 points for collectible
+            playSound(collectSound); // Play collect sound
+        }
+
         if (player.x === goal.x && player.y === goal.y) {
+            clearInterval(timerInterval); // Stop timer on win
             playSound(winSound); // Play win sound
+            document.getElementById('final-score').textContent = score;
             document.getElementById('game-over').style.display = 'flex';
         } else {
             playSound(moveSound); // Play move sound
@@ -239,6 +269,10 @@ function movePlayer(dx, dy) {
 
 function isHazard(x, y) {
     return hazards.some(h => h.x === x && h.y === y);
+}
+
+function isCollectible(x, y) {
+    return collectibles.some(c => c.x === x && c.y === y);
 }
 
 function isAdjacentToHazard(x, y) {
@@ -266,6 +300,7 @@ function destroyHazard() {
 
     if (hazardIndex !== -1) {
         hazards.splice(hazardIndex, 1); // Remove the hazard at player's position
+        score += 5; // Add 5 points for destroying a hazard
         playSound(destroySound); // Play destroy sound
         draw(); // Redraw the maze without the removed hazard
         return;
@@ -284,12 +319,40 @@ function destroyHazard() {
             const hazardIndex = hazards.findIndex(h => h.x === pos.x && h.y === pos.y);
             if (hazardIndex !== -1) {
                 hazards.splice(hazardIndex, 1); // Remove the hazard at adjacent position
+                score += 5; // Add 5 points for destroying a hazard
                 playSound(destroySound); // Play destroy sound
                 draw(); // Redraw the maze without the removed hazard
                 return;
             }
         }
     }
+}
+
+function startTimer() {
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        draw(); // Update timer display
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            playSound(timeoutSound); // Play timeout sound
+            document.getElementById('time-final-score').textContent = score;
+            document.getElementById('time-over').style.display = 'flex';
+        }
+    }, 1000); // Update every second
+}
+
+function restartGame() {
+    player = { x: 1, y: 1 }; // Reset player position
+    gameStarted = false; // Reset game state
+    score = 0; // Reset score
+    timeLeft = 60; // Reset timer
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('time-over').style.display = 'none';
+    document.getElementById('character-selection').style.display = 'flex'; // Show character selection again
+    clearInterval(timerInterval); // Clear any existing timer
+    generateMaze(); // Generate a new maze for the next game
+    draw(); // Redraw the initial maze (though hidden)
+    console.log('Game reset, new maze generated, and drawn');
 }
 
 document.addEventListener('keydown', (e) => {
@@ -309,19 +372,9 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Reset game on page reload or when "Play Again" is clicked
+// Reset game on page reload
 window.addEventListener('load', () => {
     generateMaze(); // Generate initial maze (hidden until character is selected)
     draw(); // Draw the initial maze (though hidden)
     console.log('Page loaded, maze generated, and drawn');
-});
-
-document.getElementById('game-over').querySelector('button').addEventListener('click', () => {
-    player = { x: 1, y: 1 }; // Reset player position
-    gameStarted = false; // Reset game state
-    document.getElementById('game-over').style.display = 'none';
-    document.getElementById('character-selection').style.display = 'flex'; // Show character selection again
-    generateMaze(); // Generate a new maze for the next game
-    draw(); // Redraw the initial maze (though hidden)
-    console.log('Game reset, new maze generated, and drawn');
 });
