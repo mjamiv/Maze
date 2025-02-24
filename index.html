@@ -13,7 +13,7 @@
             <div id="instructions">
                 <p>Use <strong>Arrow Keys</strong> to move your character through the maze.</p>
                 <p>Press the <strong>Space Bar</strong> to destroy red hazards and clear your path.</p>
-                <p>Reach the green goal to win!</p>
+                <p>Reach the green goal to win! Collect yellow power-ups for points. You have 60 seconds!</p>
             </div>
             <div id="characters">
                 <img src="images/char1.png" alt="Knight" data-char="char1">
@@ -22,9 +22,19 @@
             </div>
         </div>
         <canvas id="game-canvas" width="480" height="480"></canvas>
+        <div id="score-timer">
+            <span id="score">Score: 0</span>
+            <span id="timer">Time: 60</span>
+        </div>
         <div id="game-over">
             <h1>You Win!</h1>
-            <button onclick="location.reload()">Play Again</button>
+            <p>Your Score: <span id="final-score">0</span></p>
+            <button onclick="restartGame()">Play Again</button>
+        </div>
+        <div id="time-over" style="display: none;">
+            <h1>Time's Up!</h1>
+            <p>Your Score: <span id="time-final-score">0</span></p>
+            <button onclick="restartGame()">Try Again</button>
         </div>
     </div>
     <script src="script.js"></script>
