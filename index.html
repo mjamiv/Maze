@@ -11,20 +11,37 @@
         <div id="character-selection">
             <h1>Select Your Character</h1>
             <div id="instructions">
-                <p>Use <strong>Arrow Keys</strong> to move your character through the maze.</p>
+                <p>Use <strong>Arrow Keys</strong> or <strong>WASD</strong> to move your character through the maze.</p>
                 <p>Press the <strong>Space Bar</strong> to destroy red hazards and clear your path.</p>
                 <p>Reach the green goal to win! Collect yellow power-ups for points. You have 60 seconds!</p>
+                <p>Press <strong>P</strong> or <strong>ESC</strong> to pause during gameplay.</p>
             </div>
             <div id="characters">
-                <img src="images/char1.png" alt="Knight" data-char="char1">
-                <img src="images/char2.png" alt="Thief" data-char="char2">
-                <img src="images/char3.png" alt="Mage" data-char="char3">
+                <div class="character-card">
+                    <img src="images/char1.png" alt="Knight" data-char="char1">
+                    <span>Knight</span>
+                </div>
+                <div class="character-card">
+                    <img src="images/char2.png" alt="Thief" data-char="char2">
+                    <span>Thief</span>
+                </div>
+                <div class="character-card">
+                    <img src="images/char3.png" alt="Mage" data-char="char3">
+                    <span>Mage</span>
+                </div>
             </div>
         </div>
         <canvas id="game-canvas" width="480" height="480"></canvas>
         <div id="score-timer">
             <span id="score">Score: 0</span>
             <span id="timer">Time: 60</span>
+        </div>
+        <div id="controls">
+            <div id="volume-control">
+                <label for="volume-slider">Volume:</label>
+                <input type="range" id="volume-slider" min="0" max="100" value="30" oninput="setVolume(this.value / 100)">
+                <span id="volume-display">30</span>%
+            </div>
         </div>
         <div id="game-over">
             <h1>You Win!</h1>
@@ -35,6 +52,11 @@
             <h1>Time's Up!</h1>
             <p>Your Score: <span id="time-final-score">0</span></p>
             <button onclick="restartGame()">Try Again</button>
+        </div>
+        <div id="pause-overlay" style="display: none;">
+            <h1>Game Paused</h1>
+            <p>Press <strong>P</strong> or <strong>ESC</strong> to resume</p>
+            <button onclick="togglePause()">Resume</button>
         </div>
     </div>
     <script src="script.js"></script>

@@ -1,15 +1,23 @@
+* {
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background-color: #f0f0f0;
-    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
 }
 
 #game-container {
     position: relative;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    overflow: hidden;
 }
 
 #character-selection {
@@ -18,80 +26,313 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
     color: white;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 20px;
+    gap: 30px;
+    z-index: 10;
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#character-selection h1 {
+    font-size: 2.5em;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    animation: slideDown 0.6s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 #instructions {
     text-align: center;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 5px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    max-width: 500px;
+    animation: slideUp 0.6s ease-out 0.2s both;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 #instructions p {
-    margin: 5px 0;
+    margin: 8px 0;
     font-size: 16px;
+    line-height: 1.6;
+}
+
+#instructions strong {
+    color: #ffd700;
+    font-weight: bold;
 }
 
 #characters {
     display: flex;
-    gap: 20px;
+    gap: 30px;
+    animation: slideUp 0.6s ease-out 0.4s both;
 }
 
-#characters img {
-    width: 64px;
-    height: 64px;
+.character-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
     cursor: pointer;
-    transition: transform 0.2s;
+    border: 2px solid transparent;
 }
 
-#characters img:hover {
-    transform: scale(1.2);
+.character-card:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-5px);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.character-card img {
+    width: 80px;
+    height: 80px;
+    transition: all 0.3s ease;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.character-card:hover img {
+    transform: scale(1.15) rotate(5deg);
+}
+
+.character-card span {
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 #game-canvas {
-    border: 1px solid #000;
+    border: 2px solid #333;
+    display: block;
+    background: #f5f5f5;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }
 
 #score-timer {
     position: absolute;
-    top: 10px;
-    left: 10px;
+    top: 15px;
+    left: 15px;
     color: white;
-    font-size: 16px;
+    font-size: 18px;
+    font-weight: bold;
     display: flex;
     gap: 20px;
+    z-index: 5;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
 }
 
 #score-timer span {
     background: rgba(0, 0, 0, 0.7);
-    padding: 5px 10px;
-    border-radius: 3px;
+    padding: 8px 15px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
 }
 
-#game-over, #time-over {
+#score-timer span:hover {
+    background: rgba(0, 0, 0, 0.85);
+    transform: scale(1.05);
+}
+
+#controls {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 5;
+}
+
+#volume-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 15px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 14px;
+}
+
+#volume-control label {
+    font-weight: bold;
+}
+
+#volume-slider {
+    width: 100px;
+    cursor: pointer;
+}
+
+#volume-display {
+    min-width: 35px;
+    text-align: right;
+    font-weight: bold;
+}
+
+#game-over, #time-over, #pause-overlay {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
     color: white;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    z-index: 20;
+    animation: fadeIn 0.5s ease-in;
+    backdrop-filter: blur(5px);
 }
 
-#game-over button, #time-over button {
-    padding: 10px 20px;
-    font-size: 16px;
+#game-over h1, #time-over h1, #pause-overlay h1 {
+    font-size: 3em;
+    margin: 0 0 20px 0;
+    text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
+    animation: bounce 0.6s ease-out;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+#game-over p, #time-over p, #pause-overlay p {
+    font-size: 1.5em;
+    margin: 10px 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#game-over span, #time-over span {
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+#game-over button, #time-over button, #pause-overlay button {
+    padding: 15px 30px;
+    font-size: 18px;
+    font-weight: bold;
     cursor: pointer;
-    margin-top: 10px;
+    margin-top: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+#game-over button:hover, #time-over button:hover, #pause-overlay button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+#game-over button:active, #time-over button:active, #pause-overlay button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+#pause-overlay {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+#pause-overlay p {
+    font-size: 1.2em;
+    margin: 10px 0;
+}
+
+#pause-overlay strong {
+    color: #ffd700;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+    transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+    #character-selection h1 {
+        font-size: 1.8em;
+    }
+    
+    #instructions {
+        padding: 15px;
+        font-size: 14px;
+    }
+    
+    #characters {
+        gap: 15px;
+    }
+    
+    .character-card img {
+        width: 60px;
+        height: 60px;
+    }
+    
+    #score-timer {
+        font-size: 14px;
+        gap: 10px;
+    }
+    
+    #volume-control {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    #volume-slider {
+        width: 70px;
+    }
 }
