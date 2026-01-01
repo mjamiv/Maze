@@ -1,12 +1,11 @@
-const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
-const tileSize = 32;
-const mazeWidth = canvas.width / tileSize;
-const mazeHeight = canvas.height / tileSize;
+// Wait for DOM to be ready before initializing
+let canvas, ctx;
+let tileSize = 32;
+let mazeWidth, mazeHeight;
 
 let character = null;
-let player = { x: 1, y: 1, targetX: 1, targetY: 1, animating: false }; // Smooth movement
-let goal = { x: 13, y: 13 }; // Goal position (bottom-right)
+let player = { x: 1, y: 1, targetX: 1, targetY: 1, animating: false };
+let goal = { x: 13, y: 13 };
 let gameStarted = false;
 let gamePaused = false;
 let maze = [];
@@ -17,15 +16,14 @@ let timeLeft = 60;
 let timerInterval = null;
 let hasInteracted = false;
 let animationFrameId = null;
-let particles = []; // Particle effects
+let particles = [];
 let lastDrawTime = 0;
-let staticMazeCache = null; // Cache for static maze elements
+let staticMazeCache = null;
 
-// Sound effects with preloading, error handling, and interaction check
+// Sound effects
 const moveSound = new Audio('audio/move.m4a');
 const destroySound = new Audio('audio/destroy.m4a');
 const winSound = new Audio('audio/win.m4a');
-// Optional sounds - will gracefully fail if files don't exist
 const collectSound = new Audio('audio/collect.m4a');
 const timeoutSound = new Audio('audio/timeout.m4a');
 
@@ -34,22 +32,19 @@ const timeoutSound = new Audio('audio/timeout.m4a');
     sound.preload = 'auto';
     sound.volume = 0.3;
     sound.onerror = () => {
-        // Silently handle missing audio files
         sound.src = '';
     };
 });
 
-// Function to play sound with interaction check, error handling, and fallback
 function playSound(sound) {
     if (!hasInteracted || gamePaused) return;
-    
     if (sound.paused || sound.ended) {
         sound.currentTime = 0;
         sound.play().catch(() => {});
     }
 }
 
-// Set interaction flag on any user click or keypress
+// Set interaction flag
 document.addEventListener('click', () => {
     hasInteracted = true;
 });
@@ -60,7 +55,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Particle system for visual effects
+// Particle system
 function createParticles(x, y, color, count = 5) {
     for (let i = 0; i < count; i++) {
         particles.push({
@@ -87,20 +82,16 @@ function updateParticles() {
 }
 
 function generateMaze() {
-    // Initialize maze with all walls (1)
-    maze = Array(mazeHeight).fill().map(() => Array(mazeWidth).fill(1));
-
-    // Recursive backtracking with minimal dead ends and navigable paths
+    // Recursive backtracking algorithm
     function carve(x, y, depth = 0, maxDepth = 3) {
-        maze[y][x] = 0; // Carve a path (0)
+        maze[y][x] = 0;
 
-        // Use only cardinal directions to ensure simpler, navigable paths
         const directions = [
-            { dx: 0, dy: -2 },  // Up
-            { dx: 0, dy: 2 },   // Down
-            { dx: -2, dy: 0 },  // Left
-            { dx: 2, dy: 0 }    // Right
-        ].sort(() => Math.random() - 0.5); // Shuffle directions
+            { dx: 0, dy: -2 },
+            { dx: 0, dy: 2 },
+            { dx: -2, dy: 0 },
+            { dx: 2, dy: 0 }
+        ].sort(() => Math.random() - 0.5);
 
         let carvedCount = 0;
         for (let dir of directions) {
@@ -109,14 +100,13 @@ function generateMaze() {
 
             if (newX > 0 && newX < mazeWidth - 1 && newY > 0 && newY < mazeHeight - 1 && maze[newY][newX] === 1) {
                 if (Math.random() < 0.95 || depth < maxDepth) {
-                    maze[y + dir.dy / 2][x + dir.dx / 2] = 0; // Carve wall between
+                    maze[y + dir.dy / 2][x + dir.dx / 2] = 0;
                     carve(newX, newY, depth + 1, maxDepth);
                     carvedCount++;
                 }
             }
         }
 
-        // Rarely add very short dead ends for minor interest, but minimize them
         if (Math.random() < 0.05 && carvedCount < 1) {
             const extraDir = directions[Math.floor(Math.random() * directions.length)];
             const extraX = x + extraDir.dx;
@@ -128,26 +118,29 @@ function generateMaze() {
         }
     }
 
-    // Start carving from (1,1) with a small random offset
-    const startX = 1 + Math.floor(Math.random() * 2);
-    const startY = 1 + Math.floor(Math.random() * 2);
-    carve(startX, startY);
+    function buildMaze() {
+        // Initialize maze with all walls
+        maze = Array(mazeHeight).fill().map(() => Array(mazeWidth).fill(1));
+        
+        const startX = 1 + Math.floor(Math.random() * 2);
+        const startY = 1 + Math.floor(Math.random() * 2);
+        carve(startX, startY);
 
-    // Ensure start and goal positions are paths (0) and connected
-    maze[1][1] = 0; // Player start (fixed for consistency)
-    maze[13][13] = 0; // Goal (fixed for consistency)
+        maze[1][1] = 0;
+        maze[13][13] = 0;
 
-    // Add outer walls
-    for (let i = 0; i < mazeWidth; i++) {
-        maze[0][i] = 1;  // Top
-        maze[mazeHeight - 1][i] = 1;  // Bottom
+        // Add outer walls
+        for (let i = 0; i < mazeWidth; i++) {
+            maze[0][i] = 1;
+            maze[mazeHeight - 1][i] = 1;
+        }
+        for (let i = 0; i < mazeHeight; i++) {
+            maze[i][0] = 1;
+            maze[i][mazeWidth - 1] = 1;
+        }
     }
-    for (let i = 0; i < mazeHeight; i++) {
-        maze[i][0] = 1;  // Left
-        maze[i][mazeWidth - 1] = 1;  // Right
-    }
 
-    // Ensure the maze is solvable
+    // Check if solvable
     function isSolvable() {
         const visited = Array(mazeHeight).fill().map(() => Array(mazeWidth).fill(false));
         function dfs(x, y) {
@@ -167,14 +160,13 @@ function generateMaze() {
         return dfs(1, 1);
     }
 
-    // Regenerate if not solvable (retry up to 5 times)
     let attempts = 0;
-    while (!isSolvable() && attempts < 5) {
-        generateMaze();
+    do {
+        buildMaze();
         attempts++;
-    }
+    } while (!isSolvable() && attempts < 5);
 
-    // Generate random hazards (3-5 hazards)
+    // Generate hazards
     hazards = [];
     const numHazards = Math.floor(Math.random() * 3) + 3;
     for (let i = 0; i < numHazards; i++) {
@@ -183,11 +175,10 @@ function generateMaze() {
             hazardX = Math.floor(Math.random() * (mazeWidth - 2)) + 1;
             hazardY = Math.floor(Math.random() * (mazeHeight - 2)) + 1;
         } while (maze[hazardY][hazardX] !== 0 || (hazardX === 1 && hazardY === 1) || (hazardX === 13 && hazardY === 13));
-
         hazards.push({ x: hazardX, y: hazardY });
     }
 
-    // Generate random collectibles (2-4 collectibles)
+    // Generate collectibles
     collectibles = [];
     const numCollectibles = Math.floor(Math.random() * 3) + 2;
     for (let i = 0; i < numCollectibles; i++) {
@@ -197,40 +188,32 @@ function generateMaze() {
             collectY = Math.floor(Math.random() * (mazeHeight - 2)) + 1;
         } while (maze[collectY][collectX] !== 0 || (collectX === 1 && collectY === 1) || (collectX === 13 && collectY === 13) ||
                  isHazard(collectX, collectY));
-
         collectibles.push({ x: collectX, y: collectY });
     }
     
-    // Clear cache when maze regenerates
     staticMazeCache = null;
 }
 
-// Cache static maze elements for performance
 function drawStaticMaze() {
-    // If maze is not ready, just draw background
     if (!maze || maze.length === 0) {
         ctx.fillStyle = '#f5f5f5';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         return;
     }
     
-    // Use cache if it exists and is valid
     if (staticMazeCache) {
         ctx.drawImage(staticMazeCache, 0, 0);
         return;
     }
     
-    // Create offscreen canvas for static elements
     const staticCanvas = document.createElement('canvas');
     staticCanvas.width = canvas.width;
     staticCanvas.height = canvas.height;
     const staticCtx = staticCanvas.getContext('2d');
     
-    // Fill background
     staticCtx.fillStyle = '#f5f5f5';
     staticCtx.fillRect(0, 0, staticCanvas.width, staticCanvas.height);
     
-    // Draw maze walls
     for (let y = 0; y < mazeHeight; y++) {
         if (!maze[y]) continue;
         for (let x = 0; x < mazeWidth; x++) {
@@ -241,7 +224,6 @@ function drawStaticMaze() {
         }
     }
     
-    // Draw goal with gradient
     const goalGradient = staticCtx.createLinearGradient(
         goal.x * tileSize, goal.y * tileSize,
         (goal.x + 1) * tileSize, (goal.y + 1) * tileSize
@@ -251,41 +233,35 @@ function drawStaticMaze() {
     staticCtx.fillStyle = goalGradient;
     staticCtx.fillRect(goal.x * tileSize, goal.y * tileSize, tileSize, tileSize);
     
-    // Add glow effect to goal
     staticCtx.shadowBlur = 10;
     staticCtx.shadowColor = '#4CAF50';
     staticCtx.fillRect(goal.x * tileSize, goal.y * tileSize, tileSize, tileSize);
     staticCtx.shadowBlur = 0;
     
-    // Store cache and draw to main canvas
     staticMazeCache = staticCanvas;
     ctx.drawImage(staticMazeCache, 0, 0);
 }
 
 function draw() {
-    if (!ctx || !gameStarted) return;
+    if (!ctx || !gameStarted || !canvas) return;
     
     const currentTime = performance.now();
-    if (lastDrawTime > 0 && currentTime - lastDrawTime < 16) return; // Throttle to ~60fps (skip on first frame)
+    if (lastDrawTime > 0 && currentTime - lastDrawTime < 16) return;
     lastDrawTime = currentTime;
     
-    // Always clear canvas with background color first
     ctx.fillStyle = '#f5f5f5';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw static maze (cached) - will draw background if maze not ready
     drawStaticMaze();
     
-    // If maze isn't ready, stop here
     if (!maze || maze.length === 0) return;
     
-    // Draw hazards with pulsing effect
+    // Draw hazards
     const pulse = Math.sin(Date.now() / 300) * 0.2 + 0.8;
     hazards.forEach(hazard => {
         ctx.fillStyle = `rgba(255, 0, 0, ${pulse})`;
         ctx.fillRect(hazard.x * tileSize, hazard.y * tileSize, tileSize, tileSize);
         
-        // Draw warning indicator if adjacent to player
         if (isAdjacentToHazard(hazard.x, hazard.y)) {
             ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
             ctx.lineWidth = 2;
@@ -293,13 +269,12 @@ function draw() {
         }
     });
     
-    // Draw collectibles with animation
+    // Draw collectibles
     const collectiblePulse = Math.sin(Date.now() / 200) * 0.3 + 0.7;
     collectibles.forEach(collectible => {
         ctx.fillStyle = `rgba(255, 255, 0, ${collectiblePulse})`;
         ctx.fillRect(collectible.x * tileSize, collectible.y * tileSize, tileSize, tileSize);
         
-        // Add sparkle effect
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         const sparkleX = collectible.x * tileSize + tileSize / 2;
         const sparkleY = collectible.y * tileSize + tileSize / 2;
@@ -318,7 +293,7 @@ function draw() {
     });
     ctx.globalAlpha = 1.0;
     
-    // Smooth player movement with interpolation
+    // Update player animation
     if (player.animating) {
         const speed = 0.2;
         const dx = player.targetX - player.x;
@@ -334,98 +309,28 @@ function draw() {
         }
     }
     
-    // Draw player with smooth position
-    if (character && gameStarted) {
+    // Draw player
+    if (character && character.complete) {
         ctx.drawImage(character, player.x * tileSize, player.y * tileSize, tileSize, tileSize);
     }
     
-    // Update score and timer display
-    document.getElementById('score').textContent = `Score: ${score}`;
-    const timerColor = timeLeft <= 10 ? '#ff4444' : '#ffffff';
-    document.getElementById('timer').textContent = `Time: ${Math.max(0, timeLeft)}`;
-    document.getElementById('timer').style.color = timerColor;
+    // Update UI
+    const scoreEl = document.getElementById('score');
+    const timerEl = document.getElementById('timer');
+    if (scoreEl) scoreEl.textContent = `Score: ${score}`;
+    if (timerEl) {
+        timerEl.textContent = `Time: ${Math.max(0, timeLeft)}`;
+        timerEl.style.color = timeLeft <= 10 ? '#ff4444' : '#ffffff';
+    }
     
-    // Update particles
     updateParticles();
 }
 
-// Animation loop using requestAnimationFrame
 function gameLoop() {
     if (!gamePaused && gameStarted) {
         draw();
     }
     animationFrameId = requestAnimationFrame(gameLoop);
-}
-
-document.querySelectorAll('#characters img').forEach(img => {
-    img.addEventListener('click', () => {
-        character = new Image();
-        character.src = img.src;
-        character.onload = () => {
-            document.getElementById('character-selection').style.display = 'none';
-            gameStarted = true;
-            gamePaused = false;
-            hasInteracted = true;
-            player = { x: 1, y: 1, targetX: 1, targetY: 1, animating: false };
-            generateMaze();
-            staticMazeCache = null; // Force cache regeneration
-            lastDrawTime = 0; // Reset draw time to ensure first frame draws
-            startTimer();
-            draw(); // Draw immediately - gameLoop is already running from window load
-        };
-        character.onerror = () => {};
-    });
-    
-    // Add hover effect
-    img.addEventListener('mouseenter', () => {
-        img.style.transform = 'scale(1.2)';
-        img.style.filter = 'brightness(1.2)';
-    });
-    
-    img.addEventListener('mouseleave', () => {
-        img.style.transform = 'scale(1)';
-        img.style.filter = 'brightness(1)';
-    });
-});
-
-function movePlayer(dx, dy) {
-    if (player.animating || gamePaused) return;
-    
-    const newX = player.targetX + dx;
-    const newY = player.targetY + dy;
-
-    if (newX >= 0 && newX < mazeWidth && newY >= 0 && newY < mazeHeight &&
-        maze[newY][newX] === 0) {
-        
-        // Check for hazards - block movement
-        if (isHazard(newX, newY)) {
-            return;
-        }
-        
-        player.targetX = newX;
-        player.targetY = newY;
-        player.animating = true;
-
-        // Check for collectibles
-        const collectibleIndex = collectibles.findIndex(c => c.x === newX && c.y === newY);
-        if (collectibleIndex !== -1) {
-            collectibles.splice(collectibleIndex, 1);
-            score += 10;
-            createParticles(newX, newY, 'yellow', 8);
-            playSound(collectSound);
-        }
-
-        if (player.targetX === goal.x && player.targetY === goal.y) {
-            clearInterval(timerInterval);
-            cancelAnimationFrame(animationFrameId);
-            playSound(winSound);
-            document.getElementById('final-score').textContent = score;
-            document.getElementById('game-over').style.display = 'flex';
-            gameStarted = false;
-        } else {
-            playSound(moveSound);
-        }
-    }
 }
 
 function isHazard(x, y) {
@@ -443,7 +348,6 @@ function isAdjacentToHazard(x, y) {
         { x: x, y: y + 1 },
         { x: x, y: y - 1 }
     ];
-
     return hazards.some(h => 
         adjacentPositions.some(pos => 
             pos.x === h.x && pos.y === h.y && pos.x >= 0 && pos.x < mazeWidth && pos.y >= 0 && pos.y < mazeHeight
@@ -451,11 +355,50 @@ function isAdjacentToHazard(x, y) {
     );
 }
 
+function movePlayer(dx, dy) {
+    if (player.animating || gamePaused || !gameStarted) return;
+    
+    const newX = player.targetX + dx;
+    const newY = player.targetY + dy;
+
+    if (newX >= 0 && newX < mazeWidth && newY >= 0 && newY < mazeHeight &&
+        maze[newY] && maze[newY][newX] === 0) {
+        
+        if (isHazard(newX, newY)) {
+            return;
+        }
+        
+        player.targetX = newX;
+        player.targetY = newY;
+        player.animating = true;
+
+        const collectibleIndex = collectibles.findIndex(c => c.x === newX && c.y === newY);
+        if (collectibleIndex !== -1) {
+            collectibles.splice(collectibleIndex, 1);
+            score += 10;
+            createParticles(newX, newY, 'yellow', 8);
+            playSound(collectSound);
+        }
+
+        if (player.targetX === goal.x && player.targetY === goal.y) {
+            clearInterval(timerInterval);
+            cancelAnimationFrame(animationFrameId);
+            playSound(winSound);
+            const finalScoreEl = document.getElementById('final-score');
+            if (finalScoreEl) finalScoreEl.textContent = score;
+            const gameOverEl = document.getElementById('game-over');
+            if (gameOverEl) gameOverEl.style.display = 'flex';
+            gameStarted = false;
+        } else {
+            playSound(moveSound);
+        }
+    }
+}
+
 function destroyHazard() {
     if (!gameStarted || gamePaused) return;
 
-    // Check current position
-    const hazardIndex = hazards.findIndex(h => 
+    let hazardIndex = hazards.findIndex(h => 
         h.x === player.targetX && h.y === player.targetY
     );
 
@@ -465,11 +408,10 @@ function destroyHazard() {
         score += 5;
         createParticles(hazard.x, hazard.y, 'red', 10);
         playSound(destroySound);
-        staticMazeCache = null; // Invalidate cache
+        staticMazeCache = null;
         return;
     }
 
-    // Check adjacent positions
     const adjacentPositions = [
         { x: player.targetX + 1, y: player.targetY },
         { x: player.targetX - 1, y: player.targetY },
@@ -479,14 +421,14 @@ function destroyHazard() {
 
     for (let pos of adjacentPositions) {
         if (pos.x >= 0 && pos.x < mazeWidth && pos.y >= 0 && pos.y < mazeHeight) {
-            const hazardIndex = hazards.findIndex(h => h.x === pos.x && h.y === pos.y);
+            hazardIndex = hazards.findIndex(h => h.x === pos.x && h.y === pos.y);
             if (hazardIndex !== -1) {
                 const hazard = hazards[hazardIndex];
                 hazards.splice(hazardIndex, 1);
                 score += 5;
                 createParticles(hazard.x, hazard.y, 'red', 10);
                 playSound(destroySound);
-                staticMazeCache = null; // Invalidate cache
+                staticMazeCache = null;
                 return;
             }
         }
@@ -498,11 +440,8 @@ function togglePause() {
     
     gamePaused = !gamePaused;
     const pauseOverlay = document.getElementById('pause-overlay');
-    
-    if (gamePaused) {
-        pauseOverlay.style.display = 'flex';
-    } else {
-        pauseOverlay.style.display = 'none';
+    if (pauseOverlay) {
+        pauseOverlay.style.display = gamePaused ? 'flex' : 'none';
     }
 }
 
@@ -516,8 +455,10 @@ function startTimer() {
                 clearInterval(timerInterval);
                 cancelAnimationFrame(animationFrameId);
                 playSound(timeoutSound);
-                document.getElementById('time-final-score').textContent = score;
-                document.getElementById('time-over').style.display = 'flex';
+                const timeFinalScoreEl = document.getElementById('time-final-score');
+                if (timeFinalScoreEl) timeFinalScoreEl.textContent = score;
+                const timeOverEl = document.getElementById('time-over');
+                if (timeOverEl) timeOverEl.style.display = 'flex';
                 gameStarted = false;
             }
         }
@@ -532,72 +473,146 @@ function restartGame() {
     timeLeft = 60;
     collectibles = [];
     particles = [];
-    document.getElementById('game-over').style.display = 'none';
-    document.getElementById('time-over').style.display = 'none';
-    document.getElementById('pause-overlay').style.display = 'none';
-    document.getElementById('character-selection').style.display = 'flex';
+    hazards = [];
+    
+    const gameOverEl = document.getElementById('game-over');
+    const timeOverEl = document.getElementById('time-over');
+    const pauseOverlayEl = document.getElementById('pause-overlay');
+    const characterSelectionEl = document.getElementById('character-selection');
+    
+    if (gameOverEl) gameOverEl.style.display = 'none';
+    if (timeOverEl) timeOverEl.style.display = 'none';
+    if (pauseOverlayEl) pauseOverlayEl.style.display = 'none';
+    if (characterSelectionEl) characterSelectionEl.style.display = 'flex';
+    
     clearInterval(timerInterval);
     cancelAnimationFrame(animationFrameId);
+    character = null;
     generateMaze();
     staticMazeCache = null;
 }
 
-// Volume control
 function setVolume(volume) {
     const vol = Math.max(0, Math.min(1, volume));
     [moveSound, destroySound, winSound, collectSound, timeoutSound].forEach(sound => {
         sound.volume = vol;
     });
-    document.getElementById('volume-display').textContent = Math.round(vol * 100);
+    const volumeDisplayEl = document.getElementById('volume-display');
+    if (volumeDisplayEl) volumeDisplayEl.textContent = Math.round(vol * 100);
 }
 
-document.addEventListener('keydown', (e) => {
-    if (!gameStarted) {
-        hasInteracted = true;
+// Initialize when DOM is ready
+function init() {
+    canvas = document.getElementById('game-canvas');
+    if (!canvas) {
+        console.error('Canvas element not found!');
         return;
     }
-
-    switch (e.key) {
-        case 'ArrowUp':
-        case 'w':
-        case 'W':
-            e.preventDefault();
-            movePlayer(0, -1);
-            break;
-        case 'ArrowDown':
-        case 's':
-        case 'S':
-            e.preventDefault();
-            movePlayer(0, 1);
-            break;
-        case 'ArrowLeft':
-        case 'a':
-        case 'A':
-            e.preventDefault();
-            movePlayer(-1, 0);
-            break;
-        case 'ArrowRight':
-        case 'd':
-        case 'D':
-            e.preventDefault();
-            movePlayer(1, 0);
-            break;
-        case ' ':
-            e.preventDefault();
-            destroyHazard();
-            break;
-        case 'p':
-        case 'P':
-        case 'Escape':
-            e.preventDefault();
-            togglePause();
-            break;
+    
+    ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get 2D context!');
+        return;
     }
-});
+    
+    mazeWidth = canvas.width / tileSize;
+    mazeHeight = canvas.height / tileSize;
+    
+    // Set up character selection
+    const characterImages = document.querySelectorAll('#characters img');
+    characterImages.forEach(img => {
+        img.addEventListener('click', () => {
+            character = new Image();
+            character.src = img.src;
+            character.onload = () => {
+                const characterSelectionEl = document.getElementById('character-selection');
+                if (characterSelectionEl) characterSelectionEl.style.display = 'none';
+                
+                gameStarted = true;
+                gamePaused = false;
+                hasInteracted = true;
+                player = { x: 1, y: 1, targetX: 1, targetY: 1, animating: false };
+                score = 0;
+                timeLeft = 60;
+                particles = [];
+                
+                generateMaze();
+                staticMazeCache = null;
+                lastDrawTime = 0;
+                
+                startTimer();
+                draw();
+            };
+            character.onerror = () => {
+                console.error('Error loading character image');
+            };
+        });
+        
+        img.addEventListener('mouseenter', () => {
+            img.style.transform = 'scale(1.2)';
+            img.style.filter = 'brightness(1.2)';
+        });
+        
+        img.addEventListener('mouseleave', () => {
+            img.style.transform = 'scale(1)';
+            img.style.filter = 'brightness(1)';
+        });
+    });
+    
+    // Set up keyboard controls
+    document.addEventListener('keydown', (e) => {
+        if (!gameStarted) {
+            hasInteracted = true;
+            return;
+        }
 
-// Initialize on page load
-window.addEventListener('load', () => {
+        switch (e.key) {
+            case 'ArrowUp':
+            case 'w':
+            case 'W':
+                e.preventDefault();
+                movePlayer(0, -1);
+                break;
+            case 'ArrowDown':
+            case 's':
+            case 'S':
+                e.preventDefault();
+                movePlayer(0, 1);
+                break;
+            case 'ArrowLeft':
+            case 'a':
+            case 'A':
+                e.preventDefault();
+                movePlayer(-1, 0);
+                break;
+            case 'ArrowRight':
+            case 'd':
+            case 'D':
+                e.preventDefault();
+                movePlayer(1, 0);
+                break;
+            case ' ':
+                e.preventDefault();
+                destroyHazard();
+                break;
+            case 'p':
+            case 'P':
+            case 'Escape':
+                e.preventDefault();
+                togglePause();
+                break;
+        }
+    });
+    
+    // Initialize game
     generateMaze();
-    gameLoop();
     setVolume(0.3);
-});
+    gameLoop();
+}
+
+// Start when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
