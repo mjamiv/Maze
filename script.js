@@ -207,6 +207,14 @@ function generateMaze() {
 
 // Cache static maze elements for performance
 function drawStaticMaze() {
+    // If maze is not ready, just draw background
+    if (!maze || maze.length === 0) {
+        ctx.fillStyle = '#f5f5f5';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
+    // Use cache if it exists and is valid
     if (staticMazeCache) {
         ctx.drawImage(staticMazeCache, 0, 0);
         return;
@@ -218,8 +226,13 @@ function drawStaticMaze() {
     staticCanvas.height = canvas.height;
     const staticCtx = staticCanvas.getContext('2d');
     
+    // Fill background
+    staticCtx.fillStyle = '#f5f5f5';
+    staticCtx.fillRect(0, 0, staticCanvas.width, staticCanvas.height);
+    
     // Draw maze walls
     for (let y = 0; y < mazeHeight; y++) {
+        if (!maze[y]) continue;
         for (let x = 0; x < mazeWidth; x++) {
             if (maze[y][x] === 1) {
                 staticCtx.fillStyle = '#333';
@@ -244,6 +257,7 @@ function drawStaticMaze() {
     staticCtx.fillRect(goal.x * tileSize, goal.y * tileSize, tileSize, tileSize);
     staticCtx.shadowBlur = 0;
     
+    // Store cache and draw to main canvas
     staticMazeCache = staticCanvas;
     ctx.drawImage(staticMazeCache, 0, 0);
 }
@@ -252,13 +266,18 @@ function draw() {
     if (!ctx || !gameStarted) return;
     
     const currentTime = performance.now();
-    if (currentTime - lastDrawTime < 16) return; // Throttle to ~60fps
+    if (lastDrawTime > 0 && currentTime - lastDrawTime < 16) return; // Throttle to ~60fps (skip on first frame)
     lastDrawTime = currentTime;
     
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Always clear canvas with background color first
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw static maze (cached)
+    // Draw static maze (cached) - will draw background if maze not ready
     drawStaticMaze();
+    
+    // If maze isn't ready, stop here
+    if (!maze || maze.length === 0) return;
     
     // Draw hazards with pulsing effect
     const pulse = Math.sin(Date.now() / 300) * 0.2 + 0.8;
@@ -349,8 +368,10 @@ document.querySelectorAll('#characters img').forEach(img => {
             hasInteracted = true;
             player = { x: 1, y: 1, targetX: 1, targetY: 1, animating: false };
             generateMaze();
+            staticMazeCache = null; // Force cache regeneration
+            lastDrawTime = 0; // Reset draw time to ensure first frame draws
             startTimer();
-            gameLoop();
+            draw(); // Draw immediately - gameLoop is already running from window load
         };
         character.onerror = () => {};
     });
