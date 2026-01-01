@@ -49,12 +49,6 @@ document.addEventListener('click', () => {
     hasInteracted = true;
 });
 
-document.addEventListener('keydown', (e) => {
-    if (!gameStarted) {
-        hasInteracted = true;
-    }
-});
-
 // Particle system
 function createParticles(x, y, color, count = 5) {
     for (let i = 0; i < count; i++) {
@@ -501,6 +495,52 @@ function setVolume(volume) {
     if (volumeDisplayEl) volumeDisplayEl.textContent = Math.round(vol * 100);
 }
 
+function handleKeyDown(e) {
+    // Set interaction flag on any keypress
+    hasInteracted = true;
+    
+    if (!gameStarted) {
+        return;
+    }
+
+    switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+            e.preventDefault();
+            movePlayer(0, -1);
+            break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+            e.preventDefault();
+            movePlayer(0, 1);
+            break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+            e.preventDefault();
+            movePlayer(-1, 0);
+            break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+            e.preventDefault();
+            movePlayer(1, 0);
+            break;
+        case ' ':
+            e.preventDefault();
+            destroyHazard();
+            break;
+        case 'p':
+        case 'P':
+        case 'Escape':
+            e.preventDefault();
+            togglePause();
+            break;
+    }
+}
+
 // Initialize when DOM is ready
 function init() {
     canvas = document.getElementById('game-canvas');
@@ -560,49 +600,7 @@ function init() {
     });
     
     // Set up keyboard controls
-    document.addEventListener('keydown', (e) => {
-        if (!gameStarted) {
-            hasInteracted = true;
-            return;
-        }
-
-        switch (e.key) {
-            case 'ArrowUp':
-            case 'w':
-            case 'W':
-                e.preventDefault();
-                movePlayer(0, -1);
-                break;
-            case 'ArrowDown':
-            case 's':
-            case 'S':
-                e.preventDefault();
-                movePlayer(0, 1);
-                break;
-            case 'ArrowLeft':
-            case 'a':
-            case 'A':
-                e.preventDefault();
-                movePlayer(-1, 0);
-                break;
-            case 'ArrowRight':
-            case 'd':
-            case 'D':
-                e.preventDefault();
-                movePlayer(1, 0);
-                break;
-            case ' ':
-                e.preventDefault();
-                destroyHazard();
-                break;
-            case 'p':
-            case 'P':
-            case 'Escape':
-                e.preventDefault();
-                togglePause();
-                break;
-        }
-    });
+    document.addEventListener('keydown', handleKeyDown);
     
     // Initialize game
     generateMaze();
